@@ -1,6 +1,6 @@
 # NL Boundary Vintage QA
 
-A pipeline that answers one question with evidence:
+I built this pipeline to answer one question with evidence:
 
 > **Are point observations assigned to the correct *vintage* of Dutch neighbourhood boundary?**
 
@@ -42,14 +42,15 @@ https://service.pdok.nl/lv/bag/atom/bag.xml
 PDOK only carries **2021 onwards**, so the historical depth this project needs has to come from
 the CBS archive. Use PDOK when you want a live service rather than a bulk file.
 
-### Attribution you must carry
+### Attribution I carry into every output
 
-Put this in the report footer and the repo README:
+I keep this line in the report footer and here in the README:
 
 > Boundary data © CBS / Kadaster, Wijk- en Buurtkaart. Reused with attribution.
 
-Getting this right is not box-ticking. A data company cares a great deal whether you understand
-that a source's licence determines whether it can go into a commercial product.
+This matters commercially: a source's licence determines whether its data can go into a product,
+so I keep the attribution attached to every derived output rather than treating it as an
+afterthought.
 
 ---
 

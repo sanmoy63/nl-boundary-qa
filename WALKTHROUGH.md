@@ -1,8 +1,8 @@
 # NL Boundary Vintage QA — Concept Walkthrough
 
-A guided tour of what this pipeline does and, more importantly, *why each piece is there*.
-Written to be read top to bottom once, then used as a reference. It assumes you think in data
-and statistics but are newer to the production spatial-database stack.
+A guided tour of what this pipeline does and, more importantly, *why I made each choice*.
+These are design notes for the repository — written to be read top to bottom once, then kept as
+a reference.
 
 The running example throughout is the project's real question:
 
@@ -53,15 +53,15 @@ There are two families:
 **Why this is the first thing, not a detail.** You cannot measure area or distance correctly in
 degrees, because a degree of longitude is a different number of metres in Rotterdam than at the
 equator. Every `ST_Area`, `ST_Distance`, `ST_DWithin` in this project assumes metres. All CBS
-data is already EPSG:28992, so we *assert* it on load (`-a_srs EPSG:28992`) rather than trust the
+data is already EPSG:28992, so I *assert* it on load (`-a_srs EPSG:28992`) rather than trust the
 file to declare it.
 
 **The failure signature to memorise.** If a CRS is lost or assumed wrong, Dutch data lands near
 coordinate `(0, 0)` — the Gulf of Guinea, off West Africa. "My data is in the ocean off Africa"
 is the universal symptom of an SRID mistake. It is worth a distance sanity-check on any join.
 
-> Interview line: *"Get the CRS wrong and every downstream number is silently wrong, not
-> obviously wrong — that's what makes it dangerous."*
+> Why it matters: get the CRS wrong and every downstream number is silently wrong, not
+> obviously wrong — that is what makes it dangerous.
 
 ---
 
@@ -97,7 +97,7 @@ Script: [load_to_postgis.py](load_to_postgis.py)
 
 **GDAL** is the universal translator of geospatial data — it reads ~100 vector formats and
 writes to PostGIS. `ogr2ogr` is its command-line front end, and it is the tool an employer
-expects you to reach for. We shell out to it rather than loading through Python/GeoPandas because
+expects you to reach for. I shell out to it rather than loading through Python/GeoPandas because
 GDAL streams straight from the file into the database without ever holding the whole 200 MB layer
 in memory.
 
@@ -175,14 +175,14 @@ operations return garbage or throw.
 - `ST_IsValidReason(geom)` → *why*, e.g. `Self-intersection[234107 581106]`
 - `ST_MakeValid(geom)` → repairs it, preserving as much as possible
 
-On load we run `ST_MakeValid` on every polygon. This wasn't theoretical: the **2015 source
+On load I run `ST_MakeValid` on every polygon. This wasn't theoretical: the **2015 source
 contained 7 genuinely invalid polygons** that were repaired here. One subtlety — `ST_MakeValid`
 can return a `GeometryCollection` (mixing points, lines, polygons) when the input is badly broken,
-so we wrap it in `ST_CollectionExtract(..., 3)` to keep only the polygonal parts.
+so I wrap it in `ST_CollectionExtract(..., 3)` to keep only the polygonal parts.
 
 ### The dissolve, and why coastal municipalities are two rows
 
-When building `clean.gemeenten`, we discovered CBS ships each **coastal municipality as two
+When building `clean.gemeenten`, I found that CBS ships each **coastal municipality as two
 polygons** sharing one code — one land, one water. So the raw layer had 484 rows for 394 actual
 municipalities.
 
@@ -196,7 +196,7 @@ The fix is a **dissolve**: `ST_Union` all parts sharing a code into one geometry
 SELECT gemeentecode, ST_Union(ST_MakeValid(geom)) ... GROUP BY gemeentecode
 ```
 
-`ST_Union` is the spatial analogue of `GROUP BY ... SUM`: it merges many geometries into one. We
+`ST_Union` is the spatial analogue of `GROUP BY ... SUM`: it merges many geometries into one. I
 repair *before* unioning, because union on invalid input can fail or silently drop rings. After
 this, a `UNIQUE` index enforces one row per municipality so the bug cannot silently return.
 
@@ -205,9 +205,9 @@ this, a `UNIQUE` index enforces one row per municipality so the bug cannot silen
 
 ---
 
-## 6. Spatial indexing — the concept interviewers probe
+## 6. Spatial indexing — the concept that makes the queries fast
 
-This is the highest-value idea in the whole project for a job interview.
+This is the highest-value performance idea in the whole project.
 
 **The problem.** "Which of 15,000 neighbourhoods contains this point?" Naively, you test the point
 against all 15,000 polygons, and each exact geometric test is expensive. For 44,000 points that's
@@ -225,9 +225,9 @@ The `&&` operator in the SQL ("do these bounding boxes overlap?") is what lets t
 filter stage. `ST_Contains` / `ST_Intersects` then do the exact refine stage on what survives.
 
 **How you prove it worked:** `EXPLAIN (ANALYZE, BUFFERS)` shows the query plan. Without the index
-you see a `Seq Scan` (read every row); with it, an `Index Scan`. Being able to say *"I took a
-spatial join from 90 seconds to under a second by adding a GiST index"* is a complete,
-memorable interview answer — and it's literally what happens here.
+you see a `Seq Scan` (read every row); with it, an `Index Scan`. In this project, adding the GiST
+index is what takes a spatial join from tens of seconds to under a second — a concrete, measurable
+result rather than a vague claim of "faster".
 
 > The two-stage filter/refine idea is general: almost every fast spatial operation is "cheap
 > bounding-box filter, then expensive exact test on survivors."
@@ -294,7 +294,7 @@ A municipality code is `GM` + the *same* 4 digits. So this must always hold:
 is absorbed into Amsterdam (GM0363), every neighbourhood in Weesp gets a new code beginning
 `BU0363…`. The physical neighbourhood didn't move. Its identifier changed because its parent
 changed. That is the entire reason a record labelled with one vintage's code can be "wrong" for
-another vintage — and why the row counts alone (394 → 356 → 343 municipalities) already told us
+another vintage — and why the row counts alone (394 → 356 → 343 municipalities) already told me
 the problem is large before any analysis ran.
 
 ---
@@ -306,7 +306,7 @@ Script: [03_checks_vintage.sql](03_checks_vintage.sql)
 Everything so far was setup. This is the measurement, and it rests on assigning each point to a
 neighbourhood **under two different maps**, then comparing.
 
-For each point we compute:
+For each point I compute:
 
 - `buurt_at_time` — the neighbourhood under the map **in force in the point's own year**
 - `buurt_ref` — the neighbourhood under the **reference vintage** (2025, mimicking your NVM's
@@ -330,7 +330,7 @@ neighbourhood), by comparing the 4-digit slice of the code. A municipality chang
 case — it breaks joins to municipal statistics, not merely neighbourhood ones.
 
 **One honest limitation, stated in the code.** With only three vintages, a 2007 point is compared
-against the 2015 map (the newest at-or-before its year that we loaded), not a true 2007 map. This
+against the 2015 map (the newest at-or-before its year that I loaded), not a true 2007 map. This
 *understates* drift, making the headline a **conservative lower bound**. Saying so is the
 difference between a defensible result and an overclaim.
 
@@ -387,8 +387,7 @@ The `0.00%` self-consistency result at the reference year (a point joined to its
 must agree with itself) is the same idea built into the measurement: a known-correct answer that
 proves the machinery before you believe the unknown ones.
 
-> Interview framing: *"I don't trust a check until I've watched it fail on a defect I injected on
-> purpose."*
+> Principle: I don't trust a check until I've watched it fail on a defect I injected on purpose.
 
 ---
 
@@ -420,9 +419,9 @@ order. *Fix:* generate the points in a `LATERAL` join first, *then* number the e
 
 ---
 
-## 13. The 60-second interview version
+## 13. The project in one paragraph
 
-If someone says "tell me about a project," this is the spine:
+In brief:
 
 > I built a PostGIS pipeline that checks whether point data is assigned to the correct *vintage*
 > of administrative boundary. Dutch neighbourhood boundaries are re-cut annually, and because the
@@ -437,5 +436,4 @@ If someone says "tell me about a project," this is the spine:
 > The output is a scorecard plus an old-to-new crosswalk — the artefact a data customer needs when
 > you ship a new version.
 
-Every clause in that paragraph is a concept from the sections above. If you can expand any one of
-them on demand, you understand the project.
+Every clause in that paragraph maps to a section above.
