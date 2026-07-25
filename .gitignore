@@ -1,0 +1,28 @@
+# Bulk source data lives outside the repo (see README: NL_DATA_DIR=~/geodata/cbs).
+# Never commit the CBS archives or their unpacked contents.
+*.zip
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.gpkg
+data/
+raw/
+
+# BUT keep the small result CSVs -- they are the evidence the report renders from.
+!results/
+!results/*.csv
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Secrets -- the database URL, if you ever put it in a file
+.env
+*.pgpass
+
+# OS
+.DS_Store
+Thumbs.db

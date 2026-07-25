@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NL Boundary Vintage QA</title>
+<style>
+:root{
+  --ground:#f5f7f8; --surface:#ffffff; --surface-2:#fbfcfd;
+  --ink:#121821; --body:#3c4652; --muted:#6b7685; --hair:#e2e7ec;
+  --accent:#0d6b78; --accent-2:#3a97a2; --accent-3:#8dc2c8; --accent-soft:#e3f0f1;
+  --pass:#1f8f4e; --pass-bg:#e7f4ec; --pass-bd:#bfe3cc;
+  --info:#9a6b00; --info-bg:#f7efd9; --info-bd:#e8d49a;
+  --shadow:0 1px 2px rgba(18,24,33,.04),0 8px 28px rgba(18,24,33,.06);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#0d1117; --surface:#151b23; --surface-2:#12171e;
+    --ink:#e9eef4; --body:#b4bfcb; --muted:#7c8896; --hair:#262e39;
+    --accent:#40b7c5; --accent-2:#2c8b98; --accent-3:#1d5a63; --accent-soft:#10333a;
+    --pass:#48c47f; --pass-bg:#0f2c1e; --pass-bd:#1d4d33;
+    --info:#dca63f; --info-bg:#2c2410; --info-bd:#4d3f18;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="light"]{
+  --ground:#f5f7f8; --surface:#ffffff; --surface-2:#fbfcfd;
+  --ink:#121821; --body:#3c4652; --muted:#6b7685; --hair:#e2e7ec;
+  --accent:#0d6b78; --accent-2:#3a97a2; --accent-3:#8dc2c8; --accent-soft:#e3f0f1;
+  --pass:#1f8f4e; --pass-bg:#e7f4ec; --pass-bd:#bfe3cc;
+  --info:#9a6b00; --info-bg:#f7efd9; --info-bd:#e8d49a;
+  --shadow:0 1px 2px rgba(18,24,33,.04),0 8px 28px rgba(18,24,33,.06);
+}
+:root[data-theme="dark"]{
+  --ground:#0d1117; --surface:#151b23; --surface-2:#12171e;
+  --ink:#e9eef4; --body:#b4bfcb; --muted:#7c8896; --hair:#262e39;
+  --accent:#40b7c5; --accent-2:#2c8b98; --accent-3:#1d5a63; --accent-soft:#10333a;
+  --pass:#48c47f; --pass-bg:#0f2c1e; --pass-bd:#1d4d33;
+  --info:#dca63f; --info-bg:#2c2410; --info-bd:#4d3f18;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--ground); color:var(--body);
+  font-family:-apple-system,"SF Pro Text",system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"SF Mono",ui-monospace,"JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace}
+.wrap{max-width:880px; margin:0 auto; padding:0 22px}
+
+/* ---- eyebrow / labels ---- */
+.eyebrow{
+  font-family:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+  font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--accent); font-weight:600;
+}
+h1,h2,h3{color:var(--ink); text-wrap:balance; line-height:1.2; margin:0}
+a{color:var(--accent); text-underline-offset:2px}
+
+/* ---- header ---- */
+header{border-bottom:1px solid var(--hair); background:var(--surface-2)}
+.head-inner{padding:40px 0 34px}
+.kicker{display:flex; align-items:center; gap:10px; margin-bottom:20px}
+.kicker .dot{width:8px; height:8px; border-radius:50%; background:var(--pass); box-shadow:0 0 0 4px var(--pass-bg)}
+.kicker .txt{font-size:13px; color:var(--muted)}
+h1{font-size:clamp(28px,4.6vw,42px); letter-spacing:-.02em; font-weight:700}
+.dek{margin:14px 0 0; font-size:clamp(16px,2.2vw,18px); max-width:60ch; color:var(--body)}
+
+/* ---- hero stat ---- */
+.hero{
+  display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);
+  gap:26px; margin-top:30px;
+}
+@media (max-width:680px){.hero{grid-template-columns:1fr}}
+.statcard{
+  background:var(--surface); border:1px solid var(--hair); border-radius:14px;
+  padding:24px 26px; box-shadow:var(--shadow);
+}
+.statcard .big{
+  font-family:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace;
+  font-size:clamp(48px,9vw,68px); line-height:1; color:var(--ink);
+  font-weight:600; letter-spacing:-.03em; font-variant-numeric:tabular-nums;
+}
+.statcard .big span{color:var(--accent); font-size:.5em; vertical-align:top; margin-left:2px}
+.statcard .cap{margin-top:12px; font-size:14.5px; color:var(--body)}
+.statcard .cap b{color:var(--ink); font-weight:600}
+.scope{
+  background:var(--surface); border:1px solid var(--hair); border-left:3px solid var(--accent);
+  border-radius:12px; padding:18px 20px; font-size:14px;
+}
+.scope .h{font-weight:600; color:var(--ink); margin-bottom:6px; font-size:13px;
+  letter-spacing:.04em; text-transform:uppercase; font-family:"SF Mono",ui-monospace,Menlo,monospace}
+
+/* ---- status strip ---- */
+.strip{
+  margin-top:26px; background:var(--ink); border-radius:12px; padding:14px 18px;
+  display:flex; flex-wrap:wrap; gap:10px 20px; align-items:center;
+  font-family:"SF Mono",ui-monospace,"JetBrains Mono",Menlo,Consolas,monospace; font-size:13px;
+}
+:root[data-theme="dark"] .strip, .strip{color:#dfe6ee}
+@media (prefers-color-scheme:dark){.strip{background:#000}}
+:root[data-theme="dark"] .strip{background:#000}
+:root[data-theme="light"] .strip{background:#121821}
+.strip .seg{display:flex; align-items:center; gap:8px}
+.strip .ok{color:#54d98c} .strip .in{color:#e7bd5c} .strip .dim{color:#8b97a6}
+
+/* ---- sections ---- */
+section{padding:44px 0; border-bottom:1px solid var(--hair)}
+.sec-head{margin-bottom:22px}
+.sec-head h2{font-size:22px; font-weight:700; letter-spacing:-.01em; margin-top:6px}
+.sec-head p{margin:8px 0 0; color:var(--muted); font-size:15px; max-width:64ch}
+
+/* ---- scorecard table ---- */
+.tablewrap{overflow-x:auto; border:1px solid var(--hair); border-radius:12px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:14px}
+th,td{text-align:left; padding:12px 16px; border-bottom:1px solid var(--hair); white-space:nowrap}
+thead th{
+  font-family:"SF Mono",ui-monospace,Menlo,monospace; font-size:11.5px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--muted); font-weight:600; background:var(--surface-2);
+}
+tbody tr:last-child td{border-bottom:none}
+td .cid{font-family:"SF Mono",ui-monospace,Menlo,monospace; color:var(--accent); font-weight:600}
+td .desc{color:var(--ink)}
+td.num{font-family:"SF Mono",ui-monospace,Menlo,monospace; font-variant-numeric:tabular-nums; color:var(--body)}
+.badge{
+  display:inline-flex; align-items:center; gap:6px; font-family:"SF Mono",ui-monospace,Menlo,monospace;
+  font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:999px; letter-spacing:.03em;
+}
+.badge::before{content:""; width:6px; height:6px; border-radius:50%}
+.b-pass{background:var(--pass-bg); color:var(--pass); border:1px solid var(--pass-bd)}
+.b-pass::before{background:var(--pass)}
+.b-info{background:var(--info-bg); color:var(--info); border:1px solid var(--info-bd)}
+.b-info::before{background:var(--info)}
+
+/* ---- chart ---- */
+.chartcard{background:var(--surface); border:1px solid var(--hair); border-radius:12px; padding:24px 22px 18px; box-shadow:var(--shadow)}
+.chart-svg{width:100%; height:auto; display:block}
+.legend{display:flex; flex-wrap:wrap; gap:16px; margin-top:16px; font-size:13px; color:var(--body)}
+.legend .item{display:flex; align-items:center; gap:7px}
+.legend .sw{width:12px; height:12px; border-radius:3px}
+.axis-txt{font-family:"SF Mono",ui-monospace,Menlo,monospace; font-size:11px; fill:var(--muted)}
+.grid-line{stroke:var(--hair); stroke-width:1}
+.bar{transition:opacity .15s} .bar:hover{opacity:.78}
+
+/* ---- crosswalk bars ---- */
+.xw{display:flex; flex-direction:column; gap:12px}
+.xw-row{display:grid; grid-template-columns:180px 1fr auto; gap:14px; align-items:center}
+@media (max-width:560px){.xw-row{grid-template-columns:120px 1fr auto}}
+.xw-label{font-size:14px; color:var(--ink)}
+.xw-label small{display:block; color:var(--muted); font-size:12px}
+.xw-track{background:var(--accent-soft); border-radius:6px; height:26px; overflow:hidden}
+.xw-fill{height:100%; border-radius:6px; background:var(--accent); width:0; transition:width .9s cubic-bezier(.2,.7,.2,1)}
+.xw-num{font-family:"SF Mono",ui-monospace,Menlo,monospace; font-variant-numeric:tabular-nums; font-size:13.5px; color:var(--body); text-align:right}
+.xw-num b{color:var(--ink)}
+@media (prefers-reduced-motion:reduce){.xw-fill{transition:none}}
+
+/* ---- notes / method ---- */
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+@media (max-width:680px){.grid2{grid-template-columns:1fr}}
+.note{background:var(--surface); border:1px solid var(--hair); border-radius:12px; padding:20px 22px}
+.note h3{font-size:15px; margin-bottom:10px; display:flex; align-items:center; gap:8px}
+.note h3 .tag{font-family:"SF Mono",ui-monospace,Menlo,monospace; font-size:11px; color:var(--accent);
+  border:1px solid var(--hair); border-radius:5px; padding:1px 6px}
+.note p{margin:0 0 10px; font-size:14px}
+.note p:last-child{margin-bottom:0}
+.callout{background:var(--accent-soft); border:none; border-radius:12px; padding:20px 22px; font-size:14.5px}
+.callout .q{color:var(--ink); font-weight:600; margin-top:10px; font-style:italic}
+.stack{list-style:none; padding:0; margin:0; display:flex; flex-wrap:wrap; gap:8px}
+.stack li{font-family:"SF Mono",ui-monospace,Menlo,monospace; font-size:12.5px; color:var(--body);
+  background:var(--surface-2); border:1px solid var(--hair); border-radius:6px; padding:5px 10px}
+
+/* ---- footer ---- */
+footer{padding:34px 0 60px; color:var(--muted); font-size:13px}
+footer .row{display:flex; flex-wrap:wrap; justify-content:space-between; gap:14px; align-items:baseline}
+footer a{color:var(--muted); text-decoration:underline}
+footer .attrib{max-width:60ch}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap head-inner">
+    <div class="kicker">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="txt mono">PostGIS quality-assurance report &middot; public CBS data</span>
+    </div>
+    <p class="eyebrow">Boundary data pipeline</p>
+    <h1>Are points assigned to the right <em>vintage</em> of boundary?</h1>
+    <p class="dek">
+      Dutch neighbourhood boundaries are re-cut every year. Because a neighbourhood's code is
+      derived from its municipality's, every municipal merger silently renumbers the
+      neighbourhoods inside it. This report measures the consequence.
+    </p>
+
+    <div class="hero">
+      <div class="statcard">
+        <div class="big">36.3<span>%</span></div>
+        <p class="cap">
+          of point observations land in a <b>different neighbourhood</b> depending on which
+          year's map is used — rising to <b>~45%</b> for records before 2015, and <b>0%</b> at
+          the reference year, exactly as a self-consistency check requires.
+        </p>
+      </div>
+      <div class="scope">
+        <div class="h">Scope</div>
+        Demonstrated on <b>44,184 synthetic points</b> over public CBS boundaries (2015 · 2020 ·
+        2025). The identical pipeline runs privately on NVM housing transactions; those results
+        are reported separately and never published with geometry (GDPR). With three vintages the
+        headline is a deliberate <b>lower bound</b>.
+      </div>
+    </div>
+
+    <div class="strip" role="status" aria-label="Build status">
+      <span class="seg"><span class="ok">●</span> <span>21/21 checks passing</span></span>
+      <span class="seg"><span class="in">◆</span> <span>1 measurement</span></span>
+      <span class="seg dim">3 vintages</span>
+      <span class="seg dim">41,065 polygons</span>
+      <span class="seg dim">PostGIS 3.6 · PostgreSQL 17</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">01 — Coverage validation</p>
+      <h2>Is each map a valid coverage?</h2>
+      <p>Six checks per vintage: no broken shapes, no overlaps, no gaps, every neighbourhood
+        nested in its municipality, unique codes, and codes that obey the hierarchy rule.
+        Failures write their geometry to a mappable table; here, there are none.</p>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Check</th><th>What it verifies</th><th>2015</th><th>2020</th><th>2025</th></tr>
+        </thead>
+        <tbody id="scorebody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">02 — The measurement</p>
+      <h2>How much does the choice of vintage move the answer?</h2>
+      <p>Each point is assigned twice — once under the map in force in its own year, once under the
+        2025 reference map — then compared. The bands are the three source maps; the steps fall
+        exactly where the map changed.</p>
+    </div>
+    <div class="chartcard">
+      <svg class="chart-svg" viewBox="0 0 860 340" role="img"
+           aria-label="Share of points changing neighbourhood by observation year, 2005 to 2025">
+        <g id="chart"></g>
+      </svg>
+      <div class="legend">
+        <span class="item"><span class="sw" style="background:var(--accent)"></span> 2015 map (records 2005–2019)</span>
+        <span class="item"><span class="sw" style="background:var(--accent-2)"></span> 2020 map (2020–2024)</span>
+        <span class="item"><span class="sw" style="background:var(--accent-3)"></span> 2025 map — self-check, 0%</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">03 — The crosswalk</p>
+      <h2>43% of 2015 neighbourhoods changed identity by 2025</h2>
+      <p>For every 2015 neighbourhood, the pipeline finds its 2025 successor by maximum area
+        overlap and classifies what happened — the old-code → new-code map a data customer needs
+        when a new version ships. 12,339 neighbourhoods, matched.</p>
+    </div>
+    <div class="xw" id="crosswalk"></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow">04 — How to trust it</p>
+      <h2>Method &amp; honest limits</h2>
+    </div>
+    <div class="grid2">
+      <div class="callout">
+        <strong style="color:var(--ink)">Validated by negative control.</strong>
+        A test suite that never fails measures nothing. One real neighbourhood was shifted 300 m
+        and the logic re-run: it reported <b>332,066 m²</b> now outside its municipality and
+        <b>10</b> new overlaps — the checks fire on defects that are actually there.
+        <p class="q">“A check I haven't seen fail is a check I don't trust.”</p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:18px">
+        <div class="note">
+          <h3><span class="tag">why a lower bound</span></h3>
+          <p>With three vintages, a 2007 record is compared against the 2015 map — the nearest one
+            loaded — not a true 2007 map. Real drift is larger. Adding vintages tightens it.</p>
+        </div>
+        <div class="note">
+          <h3><span class="tag">synthetic points</span></h3>
+          <p>Demo points are spread evenly across land. Real transactions cluster in cities, which
+            is exactly where CBS subdivides most — so on NVM the figure plausibly rises.</p>
+        </div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:18px">
+      <h3>Built with</h3>
+      <ul class="stack">
+        <li>PostgreSQL 17</li><li>PostGIS 3.6</li><li>ogr2ogr / GDAL</li>
+        <li>ST_MakeValid</li><li>ST_Union dissolve</li><li>GiST spatial index</li>
+        <li>information_schema harmonisation</li><li>point-in-polygon ×2</li><li>Python</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <span class="attrib">Boundary data © CBS / Kadaster, Wijk- en Buurtkaart (2015, 2020, 2025).
+        Reused with attribution. Point layer synthetic; no personal data.</span>
+      <span class="mono">Sanmoy Mukherjee &middot; <a href="https://github.com/sanmoy63">github.com/sanmoy63</a></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+const SCORE = [
+  ["C1","Geometry validity","PASS","PASS","PASS"],
+  ["C2","No overlapping neighbourhoods","PASS","PASS","PASS"],
+  ["C3","No gaps within municipality","PASS","PASS","PASS"],
+  ["C4","Neighbourhood nested in municipality","PASS","PASS","PASS"],
+  ["C5","Unique neighbourhood codes","PASS","PASS","PASS"],
+  ["C6","Code-structure invariant","PASS","PASS","PASS"],
+  ["A","Stored code matches recomputed","—","—","PASS"],
+  ["B","Assignment stable across vintages","—","—","INFO"],
+];
+const badge = v => v==="PASS" ? '<span class="badge b-pass">PASS</span>'
+  : v==="INFO" ? '<span class="badge b-info">36.3%</span>'
+  : '<span style="color:var(--muted)">—</span>';
+document.getElementById("scorebody").innerHTML = SCORE.map(r =>
+  `<tr><td><span class="cid">${r[0]}</span></td><td class="desc">${r[1]}</td>`+
+  `<td class="num">${badge(r[2])}</td><td class="num">${badge(r[3])}</td><td class="num">${badge(r[4])}</td></tr>`
+).join("");
+
+// disagreement-by-year chart
+const DIS = [
+ [2005,44.61,0],[2006,43.33,0],[2007,43.62,0],[2008,44.79,0],[2009,44.68,0],
+ [2010,45.08,0],[2011,44.58,0],[2012,44.42,0],[2013,45.30,0],[2014,44.00,0],
+ [2015,45.38,0],[2016,44.17,0],[2017,43.79,0],[2018,44.54,0],[2019,45.14,0],
+ [2020,19.24,1],[2021,17.61,1],[2022,19.45,1],[2023,19.73,1],[2024,19.08,1],
+ [2025,0.00,2]
+];
+const W=860,H=340, mL=44,mR=16,mT=16,mB=46;
+const iw=W-mL-mR, ih=H-mT-mB, yMax=50;
+const bandFill=["var(--accent)","var(--accent-2)","var(--accent-3)"];
+const x=i=> mL + i*(iw/DIS.length) + (iw/DIS.length)*0.14;
+const bw=(iw/DIS.length)*0.72;
+const y=v=> mT + ih*(1 - v/yMax);
+let svg="";
+for(let g=0; g<=5; g++){const gv=g*10; const yy=y(gv);
+  svg+=`<line class="grid-line" x1="${mL}" y1="${yy}" x2="${W-mR}" y2="${yy}"/>`;
+  svg+=`<text class="axis-txt" x="${mL-8}" y="${yy+3}" text-anchor="end">${gv}%</text>`;}
+DIS.forEach((d,i)=>{
+  const h=Math.max(ih*(d[1]/yMax),0), yy=y(d[1]);
+  if(d[1]>0) svg+=`<rect class="bar" x="${x(i).toFixed(1)}" y="${yy.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${bandFill[d[2]]}"><title>${d[0]}: ${d[1]}%</title></rect>`;
+  if(d[0]%5===0||d[0]===2025) svg+=`<text class="axis-txt" x="${(x(i)+bw/2).toFixed(1)}" y="${H-mB+18}" text-anchor="middle">${d[0]}</text>`;
+});
+// endpoint marker on 2025
+const li=DIS.length-1;
+svg+=`<circle cx="${(x(li)+bw/2).toFixed(1)}" cy="${y(0)}" r="3.5" fill="var(--accent)"/>`;
+svg+=`<text class="axis-txt" x="${(x(li)+bw/2).toFixed(1)}" y="${y(0)-8}" text-anchor="middle" style="fill:var(--accent);font-weight:600">0%</text>`;
+document.getElementById("chart").innerHTML=svg;
+
+// crosswalk
+const XW=[
+ ["unchanged","same code, same footprint",6987],
+ ["split","one became several",3078],
+ ["recoded","municipality merger",790],
+ ["merged","several became one",751],
+ ["recoded","code changed, shape stable",733],
+];
+const tot=XW.reduce((s,r)=>s+r[2],0), mx=Math.max(...XW.map(r=>r[2]));
+document.getElementById("crosswalk").innerHTML = XW.map(r=>{
+  const pct=(100*r[2]/tot).toFixed(1);
+  return `<div class="xw-row"><div class="xw-label">${r[0]}<small>${r[1]}</small></div>`+
+   `<div class="xw-track"><div class="xw-fill" data-w="${(100*r[2]/mx).toFixed(1)}"></div></div>`+
+   `<div class="xw-num"><b>${r[2].toLocaleString()}</b> · ${pct}%</div></div>`;
+}).join("");
+requestAnimationFrame(()=>document.querySelectorAll(".xw-fill").forEach(f=>f.style.width=f.dataset.w+"%"));
+</script>
+
+</body>
+</html>

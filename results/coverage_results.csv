@@ -1,0 +1,23 @@
+check_id,check_name,vintage,n_failures,metric,metric_unit,verdict
+C1,Geometry validity,2015,0,,,PASS
+C1,Geometry validity,2020,0,,,PASS
+C1,Geometry validity,2025,0,,,PASS
+C2,Overlapping buurten,2015,0,0.0,m²,PASS
+C2,Overlapping buurten,2020,0,0.0,m²,PASS
+C2,Overlapping buurten,2025,0,0.0,m²,PASS
+C3,Gaps within gemeente,2015,0,0.0,m²,PASS
+C3,Gaps within gemeente,2020,0,0.0,m²,PASS
+C3,Gaps within gemeente,2025,0,0.0,m²,PASS
+C4,Buurt nested in gemeente,2015,0,0.0,m²,PASS
+C4,Buurt nested in gemeente,2020,0,0.0,m²,PASS
+C4,Buurt nested in gemeente,2025,0,0.0,m²,PASS
+C5,Unique buurt codes,2015,0,,,PASS
+C5,Unique buurt codes,2020,0,,,PASS
+C5,Unique buurt codes,2025,0,,,PASS
+C6,Code structure invariant,2015,0,,,PASS
+C6,Code structure invariant,2020,0,,,PASS
+C6,Code structure invariant,2025,0,,,PASS
+P1,Points assigned under reference vintage,2025,0,0.000,% unassigned,PASS
+P2,Points in exactly one buurt,2025,0,,,PASS
+A,Stored code matches recomputed (same vintage),2025,0,0.000,% mismatched,PASS
+B,Assignment stable across vintages,2025,16047,36.32,% changed unit,INFO
