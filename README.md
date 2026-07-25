@@ -142,3 +142,12 @@ commit and are what the Quarto report renders:
 - `qa.coverage_results` — one row per check per vintage, with a pass/fail verdict
 - `qa.vintage_disagreement` — disagreement rate by observation year (the headline chart)
 - `qa.crosswalk` — old code → new code mapping, with a change classification
+
+---
+
+## Licence
+
+The **code** in this repository is released under the [MIT License](LICENSE).
+
+The **boundary data** is not mine to relicense: the CBS Wijk- en Buurtkaart is © CBS / Kadaster
+and is reused under its own terms, which require attribution to CBS and Kadaster (see section 1).
