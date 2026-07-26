@@ -1,15 +1,12 @@
--- ===========================================================================
---  NL BOUNDARY VINTAGE QA -- FILE 02.  Is each vintage a valid coverage?
+-- File 02 — is each vintage a valid coverage?
 --
---  A "coverage" is a set of polygons that tiles a region exactly: no gaps, no
---  overlaps, every child nested in its parent. Boundary products live or die on
---  this property, and it is the thing customers notice first when it breaks.
+-- A "coverage" is a set of polygons that tiles a region exactly: no gaps, no overlaps, every
+-- child nested in its parent. Boundary products live or die on this, and it's the first thing a
+-- customer notices when it breaks.
 --
---  Six checks, all writing into qa.coverage_results. Failure geometry goes into
---  qa.failures, which stays small enough to publish and map.
---
---  Run after 01_bootstrap.sql. Takes a few minutes on three vintages.
--- ===========================================================================
+-- Six checks, all writing to qa.coverage_results; any failing geometry goes to qa.failures,
+-- which stays small enough to publish and map. Run after 01_bootstrap.sql — a few minutes on
+-- three vintages.
 
 SET search_path TO clean, qa, public;
 
@@ -36,9 +33,7 @@ CREATE TABLE qa.failures (
 );
 
 
--- ###########################################################################
 -- C1.  Geometry validity.
--- ###########################################################################
 -- 01_bootstrap already ran ST_MakeValid, so a non-zero count here means input
 -- so badly broken that repair could not save it. That is worth knowing rather
 -- than hiding.
@@ -59,15 +54,13 @@ LEFT JOIN qa.failures f ON f.check_id = 'C1' AND f.vintage = v.vintage
 GROUP BY v.vintage;
 
 
--- ###########################################################################
 -- C2.  Overlaps between neighbouring buurten.
--- ###########################################################################
--- Two polygons that merely share an edge do NOT satisfy ST_Overlaps, so a hit
--- here is a real double-counted area, not a touching border. The `&&` bounding
--- box test in the join lets the GiST index do the filtering first.
+-- Two polygons that merely share an edge don't satisfy ST_Overlaps, so a hit here is real
+-- double-counted area, not a touching border. The `&&` bounding-box test in the join lets the
+-- GiST index filter first.
 --
--- 1 m² threshold: below that it is floating-point noise from the source, not a
--- modelling error. State the threshold rather than quietly dropping rows.
+-- 1 m² threshold: below that it's floating-point noise from the source, not a modelling error.
+-- I'd rather state the threshold than quietly drop rows.
 
 INSERT INTO qa.failures (check_id, vintage, ref_a, ref_b, note, metric, geom)
 SELECT 'C2', a.vintage, a.buurtcode, b.buurtcode,
@@ -93,15 +86,13 @@ LEFT JOIN qa.failures f ON f.check_id = 'C2' AND f.vintage = v.vintage
 GROUP BY v.vintage;
 
 
--- ###########################################################################
 -- C3.  Gaps: do the buurten fill their gemeente exactly?
--- ###########################################################################
 -- Union every buurt in a gemeente and compare the result to the gemeente
 -- polygon. A positive difference is territory belonging to no buurt.
 --
--- MODELLING NOTE: water buurten are included deliberately. CBS gemeente
--- polygons include inland water, so excluding water buurten here would
--- manufacture gaps that do not exist. If you change this, change it knowingly.
+-- Note: water buurten are included on purpose. CBS gemeente polygons include inland water, so
+-- dropping water buurten here would manufacture gaps that don't really exist. If you change
+-- this, do it knowingly.
 
 -- A real table, not TEMP: PostgreSQL puts temp tables in pg_temp and rejects a schema
 -- qualifier on them. Keeping it persistent is better here anyway -- when a gap shows up you
@@ -137,9 +128,7 @@ LEFT JOIN qa.failures f ON f.check_id = 'C3' AND f.vintage = v.vintage
 GROUP BY v.vintage;
 
 
--- ###########################################################################
 -- C4.  Nesting: is each buurt geometrically inside its own gemeente?
--- ###########################################################################
 
 INSERT INTO qa.failures (check_id, vintage, ref_a, ref_b, note, metric, geom)
 SELECT 'C4', b.vintage, b.buurtcode, b.gemeentecode,
@@ -162,9 +151,7 @@ LEFT JOIN qa.failures f ON f.check_id = 'C4' AND f.vintage = v.vintage
 GROUP BY v.vintage;
 
 
--- ###########################################################################
 -- C5.  Duplicate buurt codes within a vintage.
--- ###########################################################################
 -- A code must identify exactly one polygon inside one vintage. If it does not,
 -- every downstream join silently fans out.
 
@@ -183,14 +170,12 @@ LEFT JOIN qa.failures f ON f.check_id = 'C5' AND f.vintage = v.vintage
 GROUP BY v.vintage;
 
 
--- ###########################################################################
 -- C6.  The code-structure invariant.
--- ###########################################################################
 -- buurtcode = 'BU' + gemeente(4) + wijk(2) + buurt(2)
 -- gemeentecode = 'GM' + the same 4 digits
 --
--- This is WHY a municipal merger renumbers every buurt inside it, and it is the
--- root cause of the vintage problem that file 03 measures.
+-- This is why a municipal merger renumbers every buurt inside it, and the root cause of the
+-- vintage problem that file 03 measures.
 
 INSERT INTO qa.failures (check_id, vintage, ref_a, ref_b, note, geom)
 SELECT 'C6', vintage, buurtcode, gemeentecode,
@@ -210,9 +195,7 @@ LEFT JOIN qa.failures f ON f.check_id = 'C6' AND f.vintage = v.vintage
 GROUP BY v.vintage;
 
 
--- ###########################################################################
 -- The scorecard.
--- ###########################################################################
 
 CREATE INDEX IF NOT EXISTS idx_qa_failures_geom ON qa.failures USING GIST (geom);
 ANALYZE qa.failures;

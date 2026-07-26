@@ -1,24 +1,19 @@
 #!/usr/bin/env python3
 """
-Download CBS Wijk- en Buurtkaart vintages.
+Download the CBS Wijk- en Buurtkaart for one or more years.
 
     python code/nl_boundaries/fetch_cbs.py --years 2015 2020 2025
     python code/nl_boundaries/fetch_cbs.py --years 2015 2020 2025 --check
 
-Writes to code/data/raw/cbs/WijkBuurtkaart_<YEAR>_v<N>.zip and skips anything already
-downloaded, so re-running is cheap and safe.
+Years already on disk are skipped, so re-running is cheap.
 
-WHY PROBE INSTEAD OF HARDCODING THE URL
----------------------------------------
-CBS republishes a vintage when it corrects it, and bumps a revision suffix each time. 2025 is
-currently v1, 2024 is v2, and 2012-2023 are v3. A hardcoded table would silently rot. We probe
-from v5 downwards and take the first revision that answers 200, which self-heals when CBS
-publishes a correction.
+The one wrinkle worth knowing: CBS re-uploads a year whenever they correct it and bump a
+version suffix, and the suffix isn't consistent — 2025 is v1, 2024 is v2, everything older
+is v3. Hardcoding those would break the next time they re-publish, so I just try v5 down to
+v1 and take the first one that exists.
 
-LICENCE
--------
-Publication of this geometry is permitted provided CBS and Kadaster are credited as sources.
-Carry that attribution into anything you publish.
+Licence: publishing this geometry is fine as long as CBS and Kadaster are credited. Keep that
+attribution on anything you publish.
 """
 
 from __future__ import annotations
@@ -34,19 +29,19 @@ from pathlib import Path
 
 BASE = "https://geodata.cbs.nl/files/Wijkenbuurtkaart"
 
-# Revisions to try, highest first. CBS has not gone past v3 to date; v5 gives headroom.
+# Try newest first. Nothing's gone past v3 so far; v5 is just headroom.
 CANDIDATE_REVISIONS = [5, 4, 3, 2, 1]
 
-# Vintages confirmed present on geodata.cbs.nl as of July 2026. Years outside this range may
-# exist on the older download.cbs.nl path; the probe will simply report them missing.
+# Years I've confirmed on geodata.cbs.nl (July 2026). Older ones live on a different CBS path;
+# the probe will just report those as missing.
 KNOWN_RANGE = range(2012, 2026)
 
 OUT_DIR = Path(__file__).resolve().parents[1] / "data" / "raw" / "cbs"
 
-# Folders synced by a cloud client. Writing hundreds of MB of geodata into one is slow, wastes
-# quota, and -- the reason this list exists -- the macOS File Provider extension can rename or
-# reclaim a file between the moment we close it and the moment we rename it, which makes
-# os.rename() fail on a file that downloaded perfectly.
+# Cloud-synced folders. Dumping a few hundred MB into one is slow and eats quota, but the real
+# reason for this list: on macOS the OneDrive/iCloud file provider can grab a file and rename it
+# out from under you between close() and rename(), so os.rename() blows up on a download that
+# actually finished fine. finalize() handles that case.
 CLOUD_MARKERS = ("CloudStorage", "OneDrive", "Dropbox", "Google Drive", "iCloud", "pCloud")
 
 
@@ -60,7 +55,7 @@ def url_for(year: int, rev: int) -> str:
 
 
 def probe(year: int, timeout: int = 20) -> tuple[str, int, int] | None:
-    """Return (url, revision, content_length) for the highest available revision, else None."""
+    """Highest available revision for a year as (url, revision, size), or None if there isn't one."""
     for rev in CANDIDATE_REVISIONS:
         url = url_for(year, rev)
         req = urllib.request.Request(url, method="HEAD")
@@ -82,17 +77,17 @@ def human(n: int) -> str:
 
 
 def finalize(tmp: Path, dest: Path, expected: int) -> None:
-    """Move the completed temp file into place.
+    """Move the finished .part file into place.
 
-    On a cloud-synced folder the sync agent may have already claimed the .part file and
-    renamed it for us. That is not an error -- if the destination is present and the right
-    size, the download succeeded and we say so rather than crashing on the bookkeeping.
+    If the data sits in a cloud-synced folder, the sync agent sometimes renames the .part file
+    for us before we get to it. That's not a failure — if the destination is there at the right
+    size, the download worked, so say so instead of crashing on the leftover bookkeeping.
     """
     if tmp.exists():
         try:
-            tmp.replace(dest)                      # atomic where the filesystem allows it
+            tmp.replace(dest)                      # atomic when the filesystem allows it
         except OSError:
-            shutil.move(str(tmp), str(dest))       # cross-device or provider-managed fallback
+            shutil.move(str(tmp), str(dest))       # fallback: cross-device, or the sync agent got there first
         return
 
     if dest.exists() and (not expected or abs(dest.stat().st_size - expected) < 4096):
@@ -115,8 +110,8 @@ def verify_zip(path: Path) -> bool:
 
 
 def download(url: str, dest: Path) -> None:
-    """Stream to a .part file then move into place, so an interrupted run never leaves a
-    half file that looks complete to the next run."""
+    """Stream to a .part file, then move it into place — so a killed run never leaves a
+    half file that looks finished to the next one."""
     tmp = dest.with_name(dest.name + ".part")
     expected = 0
     with urllib.request.urlopen(url, timeout=120) as resp, open(tmp, "wb") as fh:
@@ -169,9 +164,8 @@ def main() -> int:
         dest = args.out / f"WijkBuurtkaart_{year}_v{rev}.zip"
 
         if dest.exists():
-            # Present is not the same as usable. A run interrupted mid-stream leaves a file
-            # of plausible size that fails to open, and the failure would otherwise surface
-            # much later inside ogr2ogr.
+            # "exists" isn't "usable" — a run killed mid-stream leaves a plausible-sized file
+            # that won't open. Catch it here instead of letting ogr2ogr choke on it much later.
             if verify_zip(dest):
                 print(f"{year}: v{rev}  {human(size):>8}  already downloaded, verified")
                 continue

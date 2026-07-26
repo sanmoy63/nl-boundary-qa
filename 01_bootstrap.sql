@@ -1,18 +1,12 @@
--- ===========================================================================
---  NL BOUNDARY VINTAGE QA -- FILE 01.  Schemas and cross-vintage harmonisation.
+-- File 01 — schemas, and folding every vintage into one clean shape.
+-- Run this after load_to_postgis.py has created the raw.buurten_<YEAR> tables.
 --
---  Run after load_to_postgis.py has created raw.buurten_<YEAR> etc.
---
---  WHAT THIS SOLVES
---  Each vintage arrives with different column names. 2015 (shapefile) gives
---  bu_code / gm_code / aant_inw; 2025 (GeoPackage) gives buurtcode /
---  gemeentecode / aantal_inwoners. Rather than hardcode a per-year mapping that
---  breaks the first time CBS renames something, we look up which of several
---  candidate columns actually exists and build the INSERT dynamically.
---
---  This is the same problem a boundaries team faces on every country update:
---  the source moved, the meaning did not.
--- ===========================================================================
+-- The awkward bit: each vintage names its columns differently. 2015 (shapefile) has
+-- bu_code / gm_code / aant_inw; 2025 (GeoPackage) has buurtcode / gemeentecode /
+-- aantal_inwoners. Rather than a hardcoded per-year mapping that breaks the moment CBS
+-- renames something, I look up which of a few candidate names actually exists and build the
+-- INSERT on the fly. Same problem a boundaries team hits on every country update: the source
+-- moved, the meaning didn't.
 
 CREATE EXTENSION IF NOT EXISTS postgis;
 
@@ -24,13 +18,11 @@ CREATE SCHEMA IF NOT EXISTS qa;
 SET search_path TO clean, raw, qa, public;
 
 
--- ###########################################################################
--- PART 1.  Target tables.
--- ###########################################################################
+-- Part 1.  Target tables.
 
--- NOTE: deliberately NO primary key on (vintage, buurtcode). Duplicate codes are
--- one of the things check C5 looks for, and a constraint here would abort the
--- load instead of letting us measure the problem.
+-- Deliberately no primary key on (vintage, buurtcode). Duplicate codes are one of the things
+-- check C5 hunts for, and a constraint here would abort the load instead of letting me measure
+-- the problem.
 
 DROP TABLE IF EXISTS clean.buurten CASCADE;
 CREATE TABLE clean.buurten (
@@ -46,13 +38,13 @@ CREATE TABLE clean.buurten (
     geom           geometry(MultiPolygon, 28992)
 );
 
--- One row per gemeente per vintage, land and water DISSOLVED together.
+-- One row per gemeente per vintage, land and water dissolved together.
 --
--- WHY DISSOLVE: CBS ships coastal municipalities as two rows, one land polygon and one water
--- polygon sharing the same gemeentecode (484 rows for 394 municipalities in 2015). Joining
--- buurten to that on gemeentecode fans out, and every land buurt then gets compared against
--- its municipality's water polygon and reported as lying outside its own gemeente. Dissolving
--- first gives the true full municipal extent, which is what checks C3 and C4 actually mean.
+-- Why dissolve: CBS ships coastal municipalities as two rows — one land polygon, one water
+-- polygon — sharing a gemeentecode (484 rows for 394 municipalities in 2015). Join buurten to
+-- that on gemeentecode and it fans out: every land buurt gets compared against its
+-- municipality's water polygon and flagged as lying outside its own gemeente. Dissolving first
+-- gives the true municipal extent, which is what checks C3 and C4 actually mean to test.
 DROP TABLE IF EXISTS clean.gemeenten CASCADE;
 CREATE TABLE clean.gemeenten (
     vintage        int          NOT NULL,
@@ -72,9 +64,7 @@ CREATE TABLE IF NOT EXISTS clean.points (
 );
 
 
--- ###########################################################################
--- PART 2.  Column-name resolution.
--- ###########################################################################
+-- Part 2.  Column-name resolution.
 
 -- Returns the first candidate column that actually exists on the table, or NULL.
 CREATE OR REPLACE FUNCTION clean.pick_col(
@@ -103,9 +93,7 @@ $$ SELECT CASE WHEN p_col IS NULL THEN 'NULL::' || p_type
                 ELSE quote_ident(p_col) || '::' || p_type END $$;
 
 
--- ###########################################################################
--- PART 3.  Harmonise one vintage.
--- ###########################################################################
+-- Part 3.  Harmonise one vintage.
 
 CREATE OR REPLACE FUNCTION clean.harmonise_vintage(p_year int)
 RETURNS text LANGUAGE plpgsql AS $$
@@ -185,7 +173,7 @@ BEGIN
                 min(%3$s),
                 bool_or(CASE WHEN upper(btrim(%4$s)) IN ('JA','J','1','TRUE')
                              THEN true ELSE false END),
-                -- Repair each part BEFORE unioning: ST_Union on invalid input can fail
+                -- Repair each part before unioning: ST_Union on invalid input can fail
                 -- outright or silently drop rings.
                 ST_Multi(ST_CollectionExtract(ST_Union(ST_MakeValid(geom)), 3))
                     ::geometry(MultiPolygon, 28992)
@@ -207,9 +195,7 @@ BEGIN
 END $$;
 
 
--- ###########################################################################
--- PART 4.  Run it, then index.
--- ###########################################################################
+-- Part 4.  Run it, then index.
 
 -- Harmonise every vintage that was loaded, whatever years those happen to be.
 DO $$

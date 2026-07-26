@@ -1,37 +1,28 @@
--- ===========================================================================
---  NL BOUNDARY VINTAGE QA -- FILE 03.  Are points assigned to the right vintage?
+-- File 03 — are points assigned to the right vintage? Two separate questions:
 --
---  TWO DIFFERENT QUESTIONS, DELIBERATELY SEPARATED
+-- Test A — is the stored assignment even correct?
+--     Re-run the point-in-polygon join against the same vintage the stored code claims to come
+--     from, and compare. Any disagreement is a plain bug — a bad join, a CRS slip, a stale code.
+--     Expect ~0%.
 --
---  Test A -- is the stored assignment even correct?
---      Re-run the point-in-polygon join against the SAME vintage the stored code
---      claims to come from, and compare. Any disagreement is a straight bug: a
---      bad join, a CRS error, or a stale code. Expect ~0%.
+-- Test B — does the choice of vintage matter?
+--     Join each point to the vintage in force in its own year, and compare that to the stored
+--     reference-vintage code. Disagreement here isn't a bug; it's the measured cost of squashing
+--     a long panel onto a single boundary set.
 --
---  Test B -- does the choice of vintage matter?
---      Join each point to the vintage IN FORCE IN ITS OWN YEAR, and compare that
---      to the stored reference-vintage code. Disagreement here is NOT a bug. It
---      is the measured cost of harmonising a long panel onto one boundary set.
+-- Test B is the headline. Plot its rate against observation year and you get a curve that's flat
+-- near the reference year and climbs as you go back, stepping at the municipal-merger years.
 --
---  Test B is the headline. Plot its rate against observation year and you get a
---  curve that is flat near the reference year and climbs as you go back, with
---  visible steps at municipal merger years.
---
---  Run after 01 and 02.
--- ===========================================================================
+-- Run after 01 and 02.
 
 SET search_path TO clean, qa, public;
 
 
--- ###########################################################################
--- PART 1.  Which vintage was in force in a given year?
--- ###########################################################################
--- With only three vintages loaded we cannot know the exact boundary set for
--- every year, so we use the newest loaded vintage at or before the observation
--- year. This UNDERSTATES drift (a 2007 point gets 2015 boundaries if 2015 is the
--- oldest you loaded), which makes the headline number conservative. Say so in
--- the write-up; a conservative bound you can defend beats a precise one you
--- cannot.
+-- Part 1.  Which vintage was in force in a given year?
+-- With only three vintages loaded I can't know the exact boundary set for every year, so I use
+-- the newest loaded vintage at or before the observation year. That understates drift (a 2007
+-- point gets 2015 boundaries if 2015 is the oldest you loaded), which makes the headline
+-- conservative — a bound I can defend beats a precise number I can't.
 
 CREATE OR REPLACE FUNCTION clean.vintage_for_year(p_year int)
 RETURNS int LANGUAGE sql STABLE AS $$
@@ -49,9 +40,7 @@ RETURNS int LANGUAGE sql STABLE AS $$
 $$;
 
 
--- ###########################################################################
--- PART 2.  Assign every point twice.
--- ###########################################################################
+-- Part 2.  Assign every point twice.
 
 DROP TABLE IF EXISTS qa.point_assignment;
 CREATE TABLE qa.point_assignment AS
@@ -79,9 +68,7 @@ CREATE INDEX ON qa.point_assignment (obs_year);
 ANALYZE qa.point_assignment;
 
 
--- ###########################################################################
--- PART 3.  Coverage of the point layer itself.
--- ###########################################################################
+-- Part 3.  Coverage of the point layer itself.
 -- Before comparing assignments, confirm every point landed somewhere. Points in
 -- no polygon are usually a CRS problem, a bad geocode, or a coastal boundary.
 
@@ -114,9 +101,7 @@ FROM (
 ) x;
 
 
--- ###########################################################################
--- PART 4.  TEST A -- is the stored code correct for its own vintage?
--- ###########################################################################
+-- Part 4.  Test A -- is the stored code correct for its own vintage?
 
 DROP TABLE IF EXISTS qa.test_a;
 CREATE TABLE qa.test_a AS
@@ -144,9 +129,7 @@ SELECT 'A', 'Stored code matches recomputed (same vintage)',
 FROM qa.test_a;
 
 
--- ###########################################################################
--- PART 5.  TEST B -- does the vintage choice change the answer? (HEADLINE)
--- ###########################################################################
+-- Part 5.  Test B -- does the vintage choice change the answer? (the headline result)
 
 DROP TABLE IF EXISTS qa.vintage_disagreement;
 CREATE TABLE qa.vintage_disagreement AS
@@ -158,9 +141,8 @@ SELECT
     count(*) FILTER (WHERE buurt_at_time IS DISTINCT FROM buurt_ref)  AS n_changed,
     round(100.0 * count(*) FILTER (WHERE buurt_at_time IS DISTINCT FROM buurt_ref)
           / NULLIF(count(*), 0), 2)                                   AS pct_changed,
-    -- Of those that changed, how many changed MUNICIPALITY, not just buurt?
-    -- A gemeente change is the severe case: it breaks joins to municipal
-    -- statistics, not merely to neighbourhood ones.
+    -- Of those that changed, how many changed municipality, not just buurt? A gemeente change
+    -- is the worse case: it breaks joins to municipal statistics, not just neighbourhood ones.
     count(*) FILTER (
         WHERE substring(buurt_at_time from 3 for 4)
               IS DISTINCT FROM substring(buurt_ref from 3 for 4)
@@ -180,9 +162,7 @@ SELECT 'B', 'Assignment stable across vintages', clean.reference_vintage(),
 FROM qa.vintage_disagreement;
 
 
--- ###########################################################################
--- PART 6.  The crosswalk: old code -> new code.
--- ###########################################################################
+-- Part 6.  The crosswalk: old code -> new code.
 -- For every buurt in the oldest loaded vintage, find the reference-vintage buurt
 -- it overlaps most, and classify what happened to it. This is the artefact a
 -- data customer actually needs when you ship a new version.
@@ -243,9 +223,7 @@ CREATE INDEX ON qa.crosswalk (old_code);
 ANALYZE qa.crosswalk;
 
 
--- ###########################################################################
 -- Report.
--- ###########################################################################
 
 -- Headline: the curve.
 SELECT obs_year, vintage_at_time, n_points, n_changed, pct_changed, n_gemeente_changed

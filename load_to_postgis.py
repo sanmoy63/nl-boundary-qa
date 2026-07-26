@@ -1,31 +1,23 @@
 #!/usr/bin/env python3
 """
-Load CBS Wijk- en Buurtkaart vintages into PostGIS.
+Load the CBS Wijk- en Buurtkaart into PostGIS, one year at a time.
 
     export NL_DB_URL='postgresql://geo:geo@localhost:25432/nl'
     python code/nl_boundaries/load_to_postgis.py --years 2015 2020 2025
     python code/nl_boundaries/load_to_postgis.py --demo-points 20000
 
-Creates, per vintage:
-    raw.buurten_<YEAR>, raw.wijken_<YEAR>, raw.gemeenten_<YEAR>
+Each year lands as raw.buurten_<YEAR> / raw.wijken_<YEAR> / raw.gemeenten_<YEAR>; 01_bootstrap.sql
+then folds those into single clean.buurten / clean.gemeenten tables keyed by vintage.
 
-`01_bootstrap.sql` then harmonises those into single `clean.buurten` / `clean.gemeenten`
-tables with a `vintage` column.
+Why shell out to ogr2ogr instead of GeoPandas: these files are 70-200 MB and the older ones are
+shapefiles. ogr2ogr streams straight from inside the zip into Postgres without loading the layer
+into memory, and promotes Polygon to MultiPolygon on the way in. GeoPandas would pull the whole
+thing into RAM to do the same job, slower.
 
-WHY ogr2ogr AND NOT GEOPANDAS
------------------------------
-These files are 70-200 MB and the older ones are shapefiles. ogr2ogr streams straight from
-inside the zip into PostGIS without ever holding the layer in memory, promotes Polygon to
-MultiPolygon on the way in, and is the tool an employer expects you to reach for. GeoPandas
-would read the whole thing into RAM to achieve the same result more slowly.
-
-THE SCHEMA PROBLEM THIS HANDLES
--------------------------------
-Older vintages are shapefiles in a subfolder with layers named buurt_<YEAR>, wijk_<YEAR>,
-gem_<YEAR> and uppercase fields (BU_CODE, GM_CODE). Newer vintages are GeoPackages with layers
-named buurten, wijken, gemeenten and lowercase descriptive fields (buurtcode, gemeentecode).
-We detect which we are holding rather than assuming, because the cutover year is not documented
-and CBS may move it again.
+The fiddly part is that the format changed over the years. Older vintages are shapefiles in a
+subfolder (layers buurt_<YEAR> / wijk_<YEAR> / gem_<YEAR>, uppercase fields like BU_CODE); newer
+ones are GeoPackages (layers buurten / wijken / gemeenten, lowercase fields like buurtcode). The
+cutover year isn't documented and could move, so I sniff each archive rather than assume.
 """
 
 from __future__ import annotations
@@ -43,7 +35,8 @@ RAW_DIR = Path(os.environ.get(
     Path(__file__).resolve().parents[1] / "data" / "raw" / "cbs",
 ))
 
-# Which CBS layer maps to which target table. Order matters only for readability.
+# Each CBS level, with the layer name it uses in a GeoPackage and the filename prefix it uses
+# as a shapefile. Order is just for readability.
 LEVELS = {
     "buurten":   {"gpkg": "buurten",   "shp_prefix": "buurt"},
     "wijken":    {"gpkg": "wijken",    "shp_prefix": "wijk"},
@@ -61,11 +54,11 @@ def db_url() -> str:
 
 
 def ensure_database(url: str) -> None:
-    """Create the PostGIS extension and target schemas.
+    """Make sure the PostGIS extension and the target schemas exist.
 
-    ogr2ogr will not create either for us: without the extension it cannot write a geometry
-    column, and with -lco SCHEMA=raw it expects that schema to exist. Doing this here means a
-    fresh database works on the first run instead of failing halfway through the first load.
+    ogr2ogr won't create either: no extension means it can't write a geometry column, and
+    -lco SCHEMA=raw assumes raw already exists. Doing it here is what lets a brand-new database
+    work on the first run instead of dying partway through the first load.
     """
     try:
         import psycopg2
@@ -90,7 +83,7 @@ def find_zip(year: int, raw_dir: Path) -> Path:
 
 
 def describe(zip_path: Path, year: int) -> dict[str, str]:
-    """Return {level: ogr dataset path} for this archive, detecting gpkg vs shapefile."""
+    """Figure out the ogr dataset path for each level, sniffing gpkg vs shapefile."""
     with zipfile.ZipFile(zip_path) as zf:
         names = zf.namelist()
 
@@ -118,7 +111,7 @@ def describe(zip_path: Path, year: int) -> dict[str, str]:
 
 
 def layer_name(dataset: str, lvl: str, year: int) -> str | None:
-    """GeoPackages need an explicit layer name; a single .shp does not."""
+    """GeoPackages need the layer named explicitly; a lone .shp doesn't."""
     if dataset.lower().endswith(".gpkg"):
         return LEVELS[lvl]["gpkg"]
     return None
@@ -157,12 +150,12 @@ def load_year(year: int, raw_dir: Path, url: str) -> None:
 
 
 DEMO_SQL = """
--- Synthetic points for smoke-testing the harness before real data arrives.
--- Samples random locations inside land buurten of the newest vintage and assigns each a
--- random observation year, so Test B produces a real curve rather than a flat line.
+-- Synthetic points to smoke-test the harness before real data shows up. Drops random points
+-- inside the newest vintage's land buurten and gives each a random year, so Test B has a real
+-- spread to work with rather than a flat line.
 --
--- N is approximate: we spread it evenly over the buurten with a floor of one point each,
--- so the true count is max(N, number_of_land_buurten).
+-- N is a target, not exact: points are spread evenly across the buurten with at least one each,
+-- so you actually get max(N, number_of_land_buurten).
 CREATE TABLE IF NOT EXISTS clean.points (
     point_id      bigint PRIMARY KEY,
     obs_year      int    NOT NULL,
@@ -179,10 +172,10 @@ WITH src AS (
       AND NOT is_water
 ),
 pts AS (
-    -- LATERAL rather than ST_Dump() in the target list. A set-returning function in the
-    -- SELECT list expands each input row into many output rows, but window functions are
-    -- evaluated BEFORE that expansion -- so row_number() would hand every point sampled
-    -- from the same buurt an identical id, and the primary key would reject the insert.
+    -- LATERAL here, not ST_Dump() in the SELECT list. A set-returning function in the SELECT
+    -- expands one row into many, but window functions run BEFORE that expansion -- so
+    -- row_number() would stamp every point from the same buurt with the same id, and the
+    -- primary key would throw. Dump in a LATERAL first, then number the rows.
     SELECT d.geom AS geom
     FROM src
     CROSS JOIN LATERAL ST_Dump(
@@ -201,8 +194,8 @@ FROM pts;
 CREATE INDEX IF NOT EXISTS idx_points_geom ON clean.points USING GIST (geom);
 ANALYZE clean.points;
 
--- Stamp each demo point with the newest-vintage code, mimicking a `buurt_nr_2022`-style
--- column that was populated once against a single vintage.
+-- Stamp each point with the newest vintage's code -- this stands in for a real `buurt_nr_2022`
+-- column that someone populated once, against a single vintage.
 UPDATE clean.points p
 SET buurt_stored = b.buurtcode
 FROM clean.buurten b
