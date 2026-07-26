@@ -1,4 +1,4 @@
-# NL Boundary Vintage QA — Concept Walkthrough
+# NL Boundary Vintage Tracker — Concept Walkthrough
 
 A guided tour of what this pipeline does and, more importantly, *why I made each choice*.
 These are design notes for the repository — written to be read top to bottom once, then kept as
@@ -341,7 +341,7 @@ difference between a defensible result and an overclaim.
 Also in [03_checks_vintage.sql](03_checks_vintage.sql), written to
 [results/crosswalk.csv](results/crosswalk.csv).
 
-A QA verdict tells you *that* codes changed. A **crosswalk** tells you *how to translate* old
+The checks tell you *that* codes changed. A **crosswalk** tells you *how to translate* old
 codes to new — which is what anyone holding old data needs when you ship a new version.
 
 **Method: match by maximum area overlap.** For each 2015 neighbourhood, find the 2025
@@ -370,7 +370,7 @@ So **43% of 2015 neighbourhoods changed identity by 2025.** That table, framed a
 
 18/18 PASS is a *warning sign*, not a victory. A test that can never fail measures nothing. So the
 harness was checked three ways — and this section is arguably the most important thing to be able
-to talk about, because it's what separates a QA tool people trust from one they don't.
+to talk about, because it's what separates a validation tool people trust from one they don't.
 
 1. **Are the joins reaching data?** Confirmed 1,093 municipality matches and all 41,065
    neighbourhoods joined — nothing was silently skipped by a bad join key.
